@@ -1,9 +1,9 @@
 {
-  "name": "dicoding-open-music",
+  "name": "dicoding-open-song",
   "version": "1.0.0",
   "description": "Project for Dicoding's submission",
   "main": "server.js",
-  "repository": "https://github.com/rahmat-st/dicoding-open-music",
+  "repository": "https://github.com/rahmat-st/dicoding-open-song",
   "author": "Rahmat Sulistio",
   "license": "MIT",
   "scripts": {
