@@ -37,7 +37,7 @@ class UsersService {
 
     if (result.rowCount) {
       throw new InvariantError(
-        'Gagal menambahkan user. Username sudah digunakan.'
+        'Gagal menambahkan user. Username sudah digunakan.',
       );
     }
   }

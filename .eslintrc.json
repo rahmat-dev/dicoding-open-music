@@ -9,6 +9,8 @@
     "ecmaVersion": 11
   },
   "rules": {
-    "class-methods-use-this": "off"
+    "class-methods-use-this": "off",
+    "no-underscore-dangle": "off",
+    "linebreak-style": "off"
   }
 }

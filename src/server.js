@@ -27,12 +27,18 @@ const PlaylistsService = require('./services/postgres/PlaylistsService');
 const PlaylistsValidator = require('./validator/playlists');
 const PlaylistSongsService = require('./services/postgres/PlaylistSongsService');
 
+// collaborations
+const collaborations = require('./api/collaborations');
+const CollaborationsService = require('./services/postgres/CollaborationsService');
+const CollaborationsValidator = require('./validator/collaborations');
+
 const init = async () => {
   const songsService = new SongsService();
   const usersService = new UsersService();
   const authenticationsService = new AuthenticationsService();
-  const playlistsService = new PlaylistsService();
-  const playlistSongsService = new PlaylistSongsService(songsService);
+  const collaborationsService = new CollaborationsService();
+  const playlistsService = new PlaylistsService(collaborationsService);
+  const playlistSongsService = new PlaylistSongsService();
 
   const server = Hapi.server({
     port: process.env.PORT,
@@ -96,6 +102,14 @@ const init = async () => {
         validator: PlaylistsValidator,
       },
     },
+    {
+      plugin: collaborations,
+      options: {
+        collaborationsService,
+        playlistsService,
+        validator: CollaborationsValidator,
+      },
+    },
   ]);
 
   server.ext('onPreResponse', (request, h) => {
@@ -107,7 +121,7 @@ const init = async () => {
         message: response.message,
       });
       return newResponse.code(response.statusCode);
-    } else if (response.statusCode === 500) {
+    } if (response.statusCode === 500) {
       const newResponse = h.response({
         status: 'error',
         message: 'Maaf, terjadi kesalahan pada server kami.',
