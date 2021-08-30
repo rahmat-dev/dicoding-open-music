@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const Hapi = require('@hapi/hapi');
+const Jwt = require('@hapi/jwt');
 
 const { ClientError } = require('./exceptions');
 const TokenManager = require('./tokenize/TokenManager');
@@ -20,10 +21,18 @@ const authentications = require('./api/authentications');
 const AuthenticationsService = require('./services/postgres/AuthenticationsService');
 const AuthenticationsValidator = require('./validator/authentications');
 
+// playlists
+const playlists = require('./api/playlists');
+const PlaylistsService = require('./services/postgres/PlaylistsService');
+const PlaylistsValidator = require('./validator/playlists');
+const PlaylistSongsService = require('./services/postgres/PlaylistSongsService');
+
 const init = async () => {
   const songsService = new SongsService();
   const usersService = new UsersService();
   const authenticationsService = new AuthenticationsService();
+  const playlistsService = new PlaylistsService();
+  const playlistSongsService = new PlaylistSongsService(songsService);
 
   const server = Hapi.server({
     port: process.env.PORT,
@@ -32,6 +41,25 @@ const init = async () => {
       cors: {
         origin: ['*'],
       },
+    },
+  });
+
+  await server.register(Jwt);
+
+  server.auth.strategy('jwt', 'jwt', {
+    keys: process.env.ACCESS_TOKEN_KEY,
+    verify: {
+      aud: false,
+      iss: false,
+      sub: false,
+      maxAgeSec: process.env.ACCESS_TOKEN_AGE,
+    },
+    validate: (artifacts) => {
+      const { id } = artifacts.decoded.payload;
+      return {
+        isValid: true,
+        credentials: { id },
+      };
     },
   });
 
@@ -59,6 +87,15 @@ const init = async () => {
         validator: AuthenticationsValidator,
       },
     },
+    {
+      plugin: playlists,
+      options: {
+        playlistsService,
+        playlistSongsService,
+        songsService,
+        validator: PlaylistsValidator,
+      },
+    },
   ]);
 
   server.ext('onPreResponse', (request, h) => {
@@ -70,8 +107,7 @@ const init = async () => {
         message: response.message,
       });
       return newResponse.code(response.statusCode);
-    }
-    if (response.statusCode === 500) {
+    } else if (response.statusCode === 500) {
       const newResponse = h.response({
         status: 'error',
         message: 'Maaf, terjadi kesalahan pada server kami.',
