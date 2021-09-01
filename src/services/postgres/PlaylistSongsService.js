@@ -4,8 +4,9 @@ const { Pool } = require('pg');
 const { InvariantError } = require('../../exceptions');
 
 class PlaylistSongsService {
-  constructor() {
+  constructor(cacheService) {
     this._pool = new Pool();
+    this._cacheService = cacheService;
   }
 
   async addPlaylistSong(playlistId, songId) {
@@ -19,18 +20,33 @@ class PlaylistSongsService {
     if (!result.rowCount) {
       throw new InvariantError('Gagal menambahkan lagu ke playlist');
     }
+
+    await this._cacheService.delete(`playlist-songs:${playlistId}`);
   }
 
   async getPlaylistSongs(playlistId) {
-    const query = {
-      text: `SELECT songs.id, songs.title, songs.performer FROM playlistsongs
-        LEFT JOIN songs ON songs.id = playlistsongs.song_id
-        WHERE playlistsongs.playlist_id = $1`,
-      values: [playlistId],
-    };
-    const result = await this._pool.query(query);
+    try {
+      const result = await this._cacheService.get(
+        `playlist-songs:${playlistId}`
+      );
+      return JSON.parse(result);
+    } catch (error) {
+      const query = {
+        text: `SELECT songs.id, songs.title, songs.performer FROM playlistsongs
+          LEFT JOIN songs ON songs.id = playlistsongs.song_id
+          WHERE playlistsongs.playlist_id = $1`,
+        values: [playlistId],
+      };
+      const result = await this._pool.query(query);
 
-    return result.rows;
+      // catatan akan disimpan pada cache sebelum fungsi getNotes dikembalikan
+      await this._cacheService.set(
+        `playlist-songs:${playlistId}`,
+        JSON.stringify(result.rows)
+      );
+
+      return result.rows;
+    }
   }
 
   async deletePlaylistSong(playlistId, songId) {
@@ -43,6 +59,8 @@ class PlaylistSongsService {
     if (!result.rowCount) {
       throw new InvariantError('Gagal menghapus lagu dari playlist');
     }
+
+    await this._cacheService.delete(`playlist-songs:${playlistId}`);
   }
 }
 
